@@ -1,17 +1,27 @@
 package io.hhplus.clean;
 
-import io.hhplus.clean.domain.Applicant;
-import io.hhplus.clean.domain.Lecture;
+import io.hhplus.clean.domain.entity.Applicant;
+import io.hhplus.clean.domain.entity.Lecture;
 import io.hhplus.clean.domain.LectureResponse;
+import io.hhplus.clean.repository.ApplicantRepository;
+import io.hhplus.clean.repository.LectureRepository;
 import io.hhplus.clean.service.LectureService;
+import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.springframework.boot.test.mock.mockito.MockBean;
 
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 public class LectureSignupServiceTest {
 
@@ -22,22 +32,41 @@ public class LectureSignupServiceTest {
     //- 특강은 선착순 30명만 신청 가능합니다.
     //- 이미 신청자가 30명이 초과되면 이후 신청자는 요청을 실패합니다.
 
+    @Mock
+    private LectureRepository lectureRepository;
+
+    @Mock
+    private ApplicantRepository applicantRepository;
+
+    @InjectMocks
     private LectureService lectureService;
+
+    private Lecture lecture1;
+    private Lecture lecture2;
+    private Lecture lecture3;
+    private Lecture lecture4;
+
 
     @BeforeEach
     void setUp() {
-        //LectureService 인스턴스 생성
-        lectureService = new LectureService();
+        MockitoAnnotations.openMocks(this);
 
-        //테스트용 특강 추가
-        Lecture lecture1 = new Lecture(1L, "TDD", LocalDate.of(2024,9,21), "Huh");
-        Lecture lecture2 = new Lecture(2L, "CleanArchitecture", LocalDate.of(2024, 9, 28), "Huh");
-        Lecture lecture3 = new Lecture(3L, "Server1", LocalDate.now().plusWeeks(1), "Anonymous1");
-        Lecture lecture4 = new Lecture(4L, "Server2", LocalDate.now().plusWeeks(2), "Anonymous2");
-        lectureService.addLecture(lecture1);
-        lectureService.addLecture(lecture2);
-        lectureService.addLecture(lecture3);
-        lectureService.addLecture(lecture4);
+        //Moick된 LectureRepository의 동작 설정
+        this.lecture1 = new Lecture(1L, "TDD", LocalDate.of(2024,9,21), "Huh");
+        this.lecture2 = new Lecture(2L, "CleanArchitecture", LocalDate.of(2024, 9, 28), "Huh");
+        this.lecture3 = new Lecture(3L, "Server1", LocalDate.now().plusWeeks(1), "Anonymous1");
+        this.lecture4 = new Lecture(4L, "Server2", LocalDate.now().plusWeeks(2), "Anonymous2");
+        when(lectureRepository.findById(1L)).thenReturn(Optional.of(lecture1));
+        when(lectureRepository.findById(2L)).thenReturn(Optional.of(lecture2));
+        when(lectureRepository.findById(3L)).thenReturn(Optional.of(lecture3));
+        when(lectureRepository.findById(4L)).thenReturn(Optional.of(lecture4));
+
+        when(applicantRepository.existsByEmailAndLecture(anyString(), eq(lecture3))).thenReturn(false)
+                .thenReturn(true); // 두 번째 신청할 때는 이미 신청자로 간주
+
+        // lectureRepository의 findAll() 메서드가 호출될 때 강의 목록을 반환하도록 설정
+        when(lectureRepository.findAll()).thenReturn(Arrays.asList(lecture1, lecture2, lecture3, lecture4));
+
     }
 
     /**
@@ -49,6 +78,7 @@ public class LectureSignupServiceTest {
 
 
     @Test
+    @Transactional
     void 내가_특강을_신청하면_성공한다() {
 
         //given
@@ -59,7 +89,13 @@ public class LectureSignupServiceTest {
         assertDoesNotThrow(() -> lectureService.applyForLecture(1L, applicant));
 
         //then
-        Lecture lecture = lectureService.getLectureMap().get(1L);
+        verify(lectureRepository, times(1)).findById(1L);
+        verify(applicantRepository, times(1)).existsByEmailAndLecture("beta1992@hanmail.net", lectureRepository.findById(1L).get());
+        verify(applicantRepository, times(1)).save(any(Applicant.class));
+        verify(lectureRepository, times(1)).save(any(Lecture.class));
+
+
+        Lecture lecture = lectureRepository.findById(1L).get();
         assertThat(lecture.getApplicants().size()).isEqualTo(1);
         assertThat(lecture.getApplicants().get(0).getName()).isEqualTo("정한슬");
     }
@@ -72,15 +108,22 @@ public class LectureSignupServiceTest {
 
         //when
         //특강 신청
-        assertDoesNotThrow(() -> lectureService.applyForLecture(1L, applicant));
+        assertDoesNotThrow(() -> lectureService.applyForLecture(3L, applicant));
 
         //두 번째 신청 시 예외 발생
         IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-                lectureService.applyForLecture(1L, applicant));
-
+                lectureService.applyForLecture(3L, applicant));
 
         //then
         assertThat(exception.getMessage()).isEqualTo("이미 신청한 사람입니다.");
+
+        // 추가 검증
+        verify(lectureRepository, times(2)).findById(3L); // 두 번 호출되어야 함
+        verify(applicantRepository, times(2)).existsByEmailAndLecture(anyString(), any(Lecture.class));
+        verify(applicantRepository, times(1)).save(any(Applicant.class)); // 첫 번째 신청만 저장되어야 함
+        verify(lectureRepository, times(1)).save(any(Lecture.class)); // 첫 번째 신청만 저장
+
+
     }
 
     @Test
@@ -89,17 +132,27 @@ public class LectureSignupServiceTest {
         //given
         for(long i=1; i<=30; i++){
             Applicant applicant = new Applicant(i, "applicant"+i, "a"+i+"@hanmail.net");
-            lectureService.applyForLecture(1L, applicant);
+
+            // mock으로 각각의 이메일에 대해 existsByEmailAndLecture가 false를 반환하도록 설정
+            when(applicantRepository.existsByEmailAndLecture("a" + i + "@hanmail.net", lecture3)).thenReturn(false);
+            lectureService.applyForLecture(3L, applicant);
         }
 
         //when
         //31번째 신청 시 정원 초과 예외 발생
         Applicant over = new Applicant(31L, "정원초과자", "over@hanmail.net");
+        when(applicantRepository.existsByEmailAndLecture("over@hanmail.net", lecture3)).thenReturn(false);
         IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-                lectureService.applyForLecture(1L, over));
+                lectureService.applyForLecture(3L, over));
 
         //then
         assertThat(exception.getMessage()).isEqualTo("정원이 초과되었습니다.");
+
+        // 추가 검증
+        verify(lectureRepository, times(31)).findById(3L); // 강의 조회가 31 번 일어남
+        verify(applicantRepository, times(30)).save(any(Applicant.class)); // 30명의 신청자만 저장
+        verify(lectureRepository, times(30)).save(any(Lecture.class)); // 30명만 강의에 저장됨
+
     }
 
     @Test
@@ -139,6 +192,10 @@ public class LectureSignupServiceTest {
         //given
         for(long i=1; i<=30; i++){
             Applicant applicant = new Applicant(i, "applicant"+i, "a"+i+"@hanmail.net");
+
+            // mock으로 각각의 이메일에 대해 existsByEmailAndLecture가 false를 반환하도록 설정
+            when(applicantRepository.existsByEmailAndLecture("a" + i + "@hanmail.net", lecture3)).thenReturn(false);
+
             lectureService.applyForLecture(3L, applicant);
         }
 
@@ -166,7 +223,8 @@ public class LectureSignupServiceTest {
 
         //given
         Applicant applicant = new Applicant(1L, "정한슬", "beta1992@hanmail.net");
-        lectureService.applyForLecture(3L, applicant);
+        applicant.setLecture(lecture3);
+        when(applicantRepository.findByApplicantId(1L)).thenReturn(List.of(applicant));
 
         //when
         List<LectureResponse> lectures = lectureService.getLecturesByUserId(1L);
