@@ -18,14 +18,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class LectureService {
 
-//    private final Map<Long, Lecture> lectureMap;
-
-//    public LectureService() {
-//        this.lectureMap = new HashMap<>();
-//    }
     private final LectureRepository lectureRepository;
     private final ApplicantRepository applicantRepository;
-
 
     public void applyForLecture(Long lectureId, Applicant applicant) {
 
