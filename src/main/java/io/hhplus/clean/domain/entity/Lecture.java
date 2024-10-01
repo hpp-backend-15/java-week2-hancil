@@ -28,7 +28,7 @@ public class Lecture {
     @Column(name = "lecturer", nullable = false)
     private String lecturer;
 
-    @OneToMany(mappedBy = "lecture", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "lecture", cascade = CascadeType.ALL , fetch = FetchType.EAGER)
     private List<Applicant> applicants = new ArrayList<>();
 
     @Transient

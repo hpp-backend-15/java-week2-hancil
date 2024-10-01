@@ -6,6 +6,8 @@ import io.hhplus.clean.domain.entity.Applicant;
 import io.hhplus.clean.domain.entity.Lecture;
 import io.hhplus.clean.repository.ApplicantRepository;
 import io.hhplus.clean.repository.LectureRepository;
+import jakarta.persistence.LockModeType;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -20,10 +22,16 @@ public class LectureService {
     private final LectureRepository lectureRepository;
     private final ApplicantRepository applicantRepository;
 
+    @Transactional
     public void applyForLecture(Long lectureId, ApplicantDTO applicant) {
 
-        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() ->
-                new IllegalArgumentException("해당 특강은 존재하지 않습니다."));
+//        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() ->
+//                new IllegalArgumentException("해당 특강은 존재하지 않습니다."));
+
+
+        Lecture lecture = lectureRepository.findByIdWithLock(lectureId)
+                .orElseThrow(() ->new IllegalArgumentException("해당 특강은 존재하지 않습니다."));
+
 
         boolean alreadyApplied = applicantRepository.existsByEmailAndLecture(applicant.getEmail(), lecture);
 
@@ -36,7 +44,6 @@ public class LectureService {
         lecture.addApplicant(newApplicant);
 
         applicantRepository.save(newApplicant); // 신청자를 저장
-//        lectureRepository.save(lecture); //특강도 저장
     }
 
     public List<Lecture> getAvailableLecturesByDate(LocalDate date) {
