@@ -1,10 +1,12 @@
 package io.hhplus.clean.domain.entity;
 
 import jakarta.persistence.*;
+import lombok.NoArgsConstructor;
 
 
 @Entity
 @Table(name = "applicants")
+@NoArgsConstructor
 public class Applicant {
 
     @Id
@@ -22,17 +24,10 @@ public class Applicant {
     @JoinColumn(name = "lecture_id")
     private Lecture lecture;
 
-    // Default constructor for JPA
-    protected Applicant() {}
-
     public Applicant(Long applicantId, String name, String email) {
         this.applicantId = applicantId;
         this.name = name;
         this.email = email;
-    }
-
-    public Long getApplicantId() {
-        return applicantId;
     }
 
     public String getName() {

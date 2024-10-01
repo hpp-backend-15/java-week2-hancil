@@ -1,12 +1,17 @@
 package io.hhplus.clean.domain.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "lectures")
+@NoArgsConstructor
+@Getter
 public class Lecture {
 
     @Id
@@ -29,9 +34,6 @@ public class Lecture {
     @Transient
     private final int MAX_CAPACITY = 30;
 
-    // Default constructor for JPA
-    protected Lecture() {}
-
     public Lecture(Long lectureId, String title, LocalDate date, String lecturer) {
         this.lectureId = lectureId;
         this.title = title;
@@ -52,23 +54,4 @@ public class Lecture {
         }
     }
 
-    public Long getLectureId() {
-        return lectureId;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public LocalDate getDate() {
-        return date;
-    }
-
-    public String getLecturer() {
-        return lecturer;
-    }
-
-    public List<Applicant> getApplicants() {
-        return applicants;
-    }
 }
