@@ -1,18 +1,14 @@
-package io.hhplus.clean.domain;
+package io.hhplus.clean.domain.dto;
 
 import lombok.Getter;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-
 @Getter
-public class LectureResponse {
+public class LectureResponseDTO {
     private final Long lectureId;
     private final String title;
     private final String lecturer;
 
-    public LectureResponse(Long lectureId, String title, String lecturer) {
+    public LectureResponseDTO(Long lectureId, String title, String lecturer) {
         this.lectureId = lectureId;
         this.title = title;
         this.lecturer = lecturer;
