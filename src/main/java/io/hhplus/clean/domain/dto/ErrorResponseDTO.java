@@ -1,6 +1,6 @@
 package io.hhplus.clean.domain.dto;
 
-public record ErrorResponse(
+public record ErrorResponseDTO(
         String code,
         String message
 ) {
