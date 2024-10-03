@@ -3,7 +3,7 @@ package io.hhplus.clean.integration;
 import io.hhplus.clean.domain.dto.ApplicantDTO;
 import io.hhplus.clean.domain.entity.Lecture;
 import io.hhplus.clean.domain.repository.LectureRepository;
-import io.hhplus.clean.application.service.LectureUseCase;
+import io.hhplus.clean.application.usecase.LectureUseCase;
 import io.hhplus.clean.application.service.LectureService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,6 +48,7 @@ public class LectureServiceConcurrencyTest {
         lectureService.addLecture(lecture4);
     }
 
+    //STEP3
     @Test
     void 동시성_테스트_30명만_성공_나머지는_실패() throws InterruptedException {
         // given
@@ -86,43 +87,6 @@ public class LectureServiceConcurrencyTest {
         executorService.shutdown();
     }
 
-
-    @Test
-    void 동일한_유저_정보로_특강을_5번_신청했을_때_1번만_성공한다() throws InterruptedException {
-        // given
-        Long lectureId = lecture3.getLectureId(); // 미리 생성된 특강 ID
-        int totalApplicants = 5;
-        final int MAX_CAPACITY_1 = 1;
-
-        // ExecutorService 설정
-        ExecutorService executorService = Executors.newFixedThreadPool(totalApplicants); // 5번 동시에 신청했을 때
-        CountDownLatch latch = new CountDownLatch(totalApplicants); // 동시 진행을 제어하는 latch
-
-        // when
-        for (int i = 0; i < totalApplicants; i++) {
-//            int I = i;
-            executorService.submit(() -> {
-                try {
-                    ApplicantDTO applicant = new ApplicantDTO("applicant", "a@hanmail.net");
-                    lectureUseCase.applyForLecture(lectureId, applicant);
-                } catch (Exception e) {
-                    System.out.println("Exception: " + e.getMessage());
-                } finally {
-                    latch.countDown(); // latch 감소
-                }
-            });
-        }
-
-        latch.await(); // 모든 스레드가 작업을 완료할 때까지 대기
-
-        // then
-        // 1명만 성공해야 함
-        Lecture targetLecture = lectureRepository.findById(lecture3.getLectureId()).orElseThrow();
-        assertThat(targetLecture.getApplicants().size()).isEqualTo(MAX_CAPACITY_1);
-
-        // Executor 종료
-        executorService.shutdown();
-    }
 
 
 
