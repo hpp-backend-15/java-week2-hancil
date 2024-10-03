@@ -1,5 +1,6 @@
 package io.hhplus.clean.domain.entity;
 
+import io.hhplus.clean.application.exception.LectureCapacityExceededException;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -50,7 +51,7 @@ public class Lecture {
             applicants.add(applicant);
             applicant.setLecture(this); // Set bidirectional relationship
         } else {
-            throw new IllegalStateException("정원이 초과되었습니다.");
+            throw new LectureCapacityExceededException("정원이 초과되었습니다.");
         }
     }
 

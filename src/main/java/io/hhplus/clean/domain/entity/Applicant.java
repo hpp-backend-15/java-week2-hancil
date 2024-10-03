@@ -3,6 +3,8 @@ package io.hhplus.clean.domain.entity;
 import jakarta.persistence.*;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 
 @Entity
 @Table(name = "applicants")
@@ -20,14 +22,18 @@ public class Applicant {
     @Column(name = "email", nullable = false, unique = true)
     private String email;
 
+    @Column(name = "date", nullable = false)
+    private LocalDateTime localDateTime;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lecture_id")
     private Lecture lecture;
 
-    public Applicant(Long applicantId, String name, String email) {
+    public Applicant(Long applicantId, String name, String email, LocalDateTime localDateTime) {
         this.applicantId = applicantId;
         this.name = name;
         this.email = email;
+        this.localDateTime = localDateTime;
     }
 
     public String getName() {

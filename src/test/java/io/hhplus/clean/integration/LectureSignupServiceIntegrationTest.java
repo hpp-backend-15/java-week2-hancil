@@ -1,12 +1,15 @@
 package io.hhplus.clean.integration;
 
+import io.hhplus.clean.application.exception.LectureCapacityExceededException;
+import io.hhplus.clean.application.exception.ResourceAlreadyExistsException;
+import io.hhplus.clean.application.exception.ResourceNotFoundException;
 import io.hhplus.clean.domain.dto.ApplicantDTO;
 import io.hhplus.clean.domain.dto.LectureResponseDTO;
 import io.hhplus.clean.domain.entity.Applicant;
 import io.hhplus.clean.domain.entity.Lecture;
 import io.hhplus.clean.domain.repository.ApplicantRepository;
 import io.hhplus.clean.domain.repository.LectureRepository;
-import io.hhplus.clean.application.service.LectureUseCase;
+import io.hhplus.clean.application.usecase.LectureUseCase;
 import io.hhplus.clean.application.service.LectureService;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -75,7 +79,7 @@ public class LectureSignupServiceIntegrationTest {
         boolean alreadyApplied = applicantRepository.existsByEmailAndLecture(applicantDTO.getEmail(), lecture4);
         assertThat(alreadyApplied).isFalse();
 
-        Applicant newApplicant = new Applicant(null, applicantDTO.getName(), applicantDTO.getEmail());
+        Applicant newApplicant = new Applicant(null, applicantDTO.getName(), applicantDTO.getEmail(), LocalDateTime.now());
         newApplicant.setLecture(lecture4);
         lecture4.addApplicant(newApplicant);
 
@@ -93,7 +97,7 @@ public class LectureSignupServiceIntegrationTest {
         // setUp에 30명의 수강신청자가 존재함.
         // Server1의 수강자는 30명임을 확인
         Lecture testLecture = lectureRepository.findById(lecture3.getLectureId()).orElseThrow(() ->
-                new IllegalArgumentException("해당 특강은 존재하지 않습니다."));
+                new ResourceNotFoundException("해당 특강은 존재하지 않습니다."));
         assertThat(testLecture.getApplicants().size()).isEqualTo(30);
 
         //given
@@ -101,7 +105,7 @@ public class LectureSignupServiceIntegrationTest {
 
         //when
         //31번째 신청 시 정원 초과 예외 발생
-        IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+        LectureCapacityExceededException exception = assertThrows(LectureCapacityExceededException.class, () ->
                 lectureUseCase.applyForLecture(lecture3.getLectureId(), applicantDTO));
         //then
         assertThat(exception.getMessage()).isEqualTo("정원이 초과되었습니다.");
@@ -118,7 +122,7 @@ public class LectureSignupServiceIntegrationTest {
 
 
         //when
-        IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+        ResourceAlreadyExistsException exception = assertThrows(ResourceAlreadyExistsException.class, () ->
                 lectureUseCase.applyForLecture(lecture4.getLectureId(), applicantDTO));
 
         //then

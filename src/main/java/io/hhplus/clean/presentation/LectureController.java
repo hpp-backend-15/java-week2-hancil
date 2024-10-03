@@ -1,7 +1,7 @@
 package io.hhplus.clean.presentation;
 
 
-import io.hhplus.clean.application.service.LectureUseCase;
+import io.hhplus.clean.application.usecase.LectureUseCase;
 import io.hhplus.clean.domain.dto.ApplicantDTO;
 import io.hhplus.clean.domain.dto.LectureResponseDTO;
 import lombok.RequiredArgsConstructor;

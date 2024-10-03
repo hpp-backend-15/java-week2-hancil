@@ -1,5 +1,7 @@
-package io.hhplus.clean.application.service;
+package io.hhplus.clean.application.usecase;
 
+import io.hhplus.clean.application.exception.ResourceAlreadyExistsException;
+import io.hhplus.clean.application.exception.ResourceNotFoundException;
 import io.hhplus.clean.domain.dto.ApplicantDTO;
 import io.hhplus.clean.domain.dto.LectureResponseDTO;
 import io.hhplus.clean.domain.entity.Applicant;
@@ -11,8 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,15 +31,15 @@ public class LectureUseCase {
 //                new IllegalArgumentException("해당 특강은 존재하지 않습니다."));
 
         Lecture lecture = lectureRepository.findByIdWithLock(lectureId)
-                .orElseThrow(() ->new NoSuchElementException("해당 특강은 존재하지 않습니다."));
+                .orElseThrow(() ->new ResourceNotFoundException("해당 특강은 존재하지 않습니다."));
 
         boolean alreadyApplied = applicantRepository.existsByEmailAndLecture(applicant.getEmail(), lecture);
 
         if (alreadyApplied) {
-            throw new IllegalStateException("이미 신청한 사람입니다.");
+            throw new ResourceAlreadyExistsException("이미 신청한 사람입니다.");
         }
 
-        Applicant newApplicant = new Applicant(null, applicant.getName(), applicant.getEmail());
+        Applicant newApplicant = new Applicant(null, applicant.getName(), applicant.getEmail(), LocalDateTime.now());
         newApplicant.setLecture(lecture);
         lecture.addApplicant(newApplicant);
 

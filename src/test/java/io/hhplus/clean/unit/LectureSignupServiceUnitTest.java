@@ -1,12 +1,15 @@
 package io.hhplus.clean.unit;
 
+import io.hhplus.clean.application.exception.LectureCapacityExceededException;
+import io.hhplus.clean.application.exception.ResourceAlreadyExistsException;
+import io.hhplus.clean.application.exception.ResourceNotFoundException;
 import io.hhplus.clean.domain.dto.ApplicantDTO;
 import io.hhplus.clean.domain.dto.LectureResponseDTO;
 import io.hhplus.clean.domain.entity.Applicant;
 import io.hhplus.clean.domain.entity.Lecture;
 import io.hhplus.clean.domain.repository.ApplicantRepository;
 import io.hhplus.clean.domain.repository.LectureRepository;
-import io.hhplus.clean.application.service.LectureUseCase;
+import io.hhplus.clean.application.usecase.LectureUseCase;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,9 +18,9 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,12 +61,10 @@ public class LectureSignupServiceUnitTest {
         this.lecture3 = new Lecture(3L, "Server1", LocalDate.now().plusWeeks(1), "Anonymous1");
         this.lecture4 = new Lecture(4L, "Server2", LocalDate.now().plusWeeks(2), "Anonymous2");
 
-
 //        when(lectureRepository.findById(1L)).thenReturn(Optional.of(lecture1));
 //        when(lectureRepository.findById(2L)).thenReturn(Optional.of(lecture2));
 //        when(lectureRepository.findById(3L)).thenReturn(Optional.of(lecture3));
 //        when(lectureRepository.findById(4L)).thenReturn(Optional.of(lecture4));
-
 
         when(lectureRepository.findByIdWithLock(1L)).thenReturn(Optional.of(lecture1));
         when(lectureRepository.findByIdWithLock(2L)).thenReturn(Optional.of(lecture2));
@@ -119,7 +120,7 @@ public class LectureSignupServiceUnitTest {
         assertDoesNotThrow(() -> lectureUseCase.applyForLecture(3L, applicantDTO));
 
         //두 번째 신청 시 예외 발생
-        IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+        ResourceAlreadyExistsException exception = assertThrows(ResourceAlreadyExistsException.class, () ->
                 lectureUseCase.applyForLecture(3L, applicantDTO));
 
         //then
@@ -147,10 +148,9 @@ public class LectureSignupServiceUnitTest {
 
         //when
         //31번째 신청 시 정원 초과 예외 발생
-//        Applicant over = new Applicant(31L, "정원초과자", "over@hanmail.net");
         ApplicantDTO over = new ApplicantDTO("정원초과자", "over@hanmail.net");
         when(applicantRepository.existsByEmailAndLecture("over@hanmail.net", lecture3)).thenReturn(false);
-        IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+        LectureCapacityExceededException exception = assertThrows(LectureCapacityExceededException.class, () ->
                 lectureUseCase.applyForLecture(3L, over));
 
         //then
@@ -171,7 +171,7 @@ public class LectureSignupServiceUnitTest {
 
         //when
         //존재하지 않는 특강을 신청
-        NoSuchElementException exception = assertThrows(NoSuchElementException.class, () ->
+        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () ->
                 lectureUseCase.applyForLecture(lectureId, applicantDTO));
 
         //then
@@ -229,7 +229,7 @@ public class LectureSignupServiceUnitTest {
     void 수강_신청_완료된_특강_조회() {
 
         //given
-        Applicant applicant = new Applicant(1L, "정한슬", "beta1992@hanmail.net");
+        Applicant applicant = new Applicant(1L, "정한슬", "beta1992@hanmail.net", LocalDateTime.now());
         applicant.setLecture(lecture3);
         when(applicantRepository.findByEmail("beta1992@hanmail.net")).thenReturn(List.of(applicant));
 
