@@ -4,9 +4,10 @@ import io.hhplus.clean.domain.dto.ApplicantDTO;
 import io.hhplus.clean.domain.dto.LectureResponseDTO;
 import io.hhplus.clean.domain.entity.Applicant;
 import io.hhplus.clean.domain.entity.Lecture;
-import io.hhplus.clean.repository.ApplicantRepository;
-import io.hhplus.clean.repository.LectureRepository;
-import io.hhplus.clean.service.LectureService;
+import io.hhplus.clean.domain.repository.ApplicantRepository;
+import io.hhplus.clean.domain.repository.LectureRepository;
+import io.hhplus.clean.application.service.LectureUseCase;
+import io.hhplus.clean.application.service.LectureService;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,9 +34,12 @@ public class LectureSignupServiceIntegrationTest {
     @Autowired
     private LectureRepository lectureRepository;
 
-
     @Autowired
     private LectureService lectureService;
+
+    @Autowired
+    private LectureUseCase lectureUseCase;
+
 
     private Lecture lecture1;
     private Lecture lecture2;
@@ -57,14 +61,13 @@ public class LectureSignupServiceIntegrationTest {
 
         for(long i=1; i<=30; i++){
             ApplicantDTO applicantDTO = new ApplicantDTO("applicant"+i, "a"+i+"@hanmail.net");
-            lectureService.applyForLecture(lecture3.getLectureId(), applicantDTO);
+            lectureUseCase.applyForLecture(lecture3.getLectureId(), applicantDTO);
         }
 
     }
 
 
     @Test
-    @Transactional // 트랜잭션을 유지하기 위해 추가
     void 단일_신청자_insert_test() {
 
         ApplicantDTO applicantDTO = new ApplicantDTO("정한슬", "beta1992@hanmail.net");
@@ -85,7 +88,6 @@ public class LectureSignupServiceIntegrationTest {
 
 
     @Test
-    @Transactional // 트랜잭션을 유지하기 위해 추가
     void 정원을_초과하면_신청에_실패한다() {
 
         // setUp에 30명의 수강신청자가 존재함.
@@ -100,7 +102,7 @@ public class LectureSignupServiceIntegrationTest {
         //when
         //31번째 신청 시 정원 초과 예외 발생
         IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-                lectureService.applyForLecture(lecture3.getLectureId(), applicantDTO));
+                lectureUseCase.applyForLecture(lecture3.getLectureId(), applicantDTO));
         //then
         assertThat(exception.getMessage()).isEqualTo("정원이 초과되었습니다.");
 
@@ -108,17 +110,16 @@ public class LectureSignupServiceIntegrationTest {
 
 
     @Test
-    @Transactional // 트랜잭션을 유지하기 위해 추가
     void 동일_신청자는_동일한_강의에_대해_두_번_신청_하면_실패한다() {
 
         //given
         ApplicantDTO applicantDTO = new ApplicantDTO("정한슬", "beta1992@hanmail.net");
-        lectureService.applyForLecture(lecture4.getLectureId(), applicantDTO);
+        lectureUseCase.applyForLecture(lecture4.getLectureId(), applicantDTO);
 
 
         //when
         IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-                lectureService.applyForLecture(lecture4.getLectureId(), applicantDTO));
+                lectureUseCase.applyForLecture(lecture4.getLectureId(), applicantDTO));
 
         //then
         assertThat(exception.getMessage()).isEqualTo("이미 신청한 사람입니다.");
@@ -126,11 +127,10 @@ public class LectureSignupServiceIntegrationTest {
     }
 
     @Test
-    @Transactional
     void 날짜별_현재_신청_가능한_특강_목록() {
 
         //정원이 꽉 찼고, 특강날이 지난 목록은 조회되지 않아야 하므로
-        List<Lecture> availableLecturesByDate = lectureService.getAvailableLecturesByDate(LocalDate.now());
+        List<LectureResponseDTO> availableLecturesByDate = lectureUseCase.getAvailableLecturesByDate(LocalDate.now());
         assertEquals(1, availableLecturesByDate.size());
     }
 
@@ -142,7 +142,7 @@ public class LectureSignupServiceIntegrationTest {
         //given
         ApplicantDTO applicantDTO = new ApplicantDTO("applicant30", "a30@hanmail.net");
 
-        List<LectureResponseDTO> lectureResponse = lectureService.getLecturesByUserId(applicantDTO.getEmail());
+        List<LectureResponseDTO> lectureResponse = lectureUseCase.getLecturesByUserId(applicantDTO.getEmail());
 
         assertThat(lectureResponse.size()).isEqualTo(1);
         assertThat(lectureResponse.get(0).getTitle()).isEqualTo("Server1");
@@ -151,9 +151,8 @@ public class LectureSignupServiceIntegrationTest {
     }
 
     @Test
-    @Transactional
     void 신청된_특강이_없으면() {
-        List<LectureResponseDTO> lectures = lectureService.getLecturesByUserId("beta1992@hanmail.net");
+        List<LectureResponseDTO> lectures = lectureUseCase.getLecturesByUserId("beta1992@hanmail.net");
         assertThat(lectures).isEmpty();
     }
 

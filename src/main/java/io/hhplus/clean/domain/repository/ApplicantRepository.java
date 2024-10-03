@@ -1,4 +1,4 @@
-package io.hhplus.clean.repository;
+package io.hhplus.clean.domain.repository;
 
 import io.hhplus.clean.domain.entity.Applicant;
 import io.hhplus.clean.domain.entity.Lecture;

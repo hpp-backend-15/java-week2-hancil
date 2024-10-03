@@ -4,9 +4,9 @@ import io.hhplus.clean.domain.dto.ApplicantDTO;
 import io.hhplus.clean.domain.dto.LectureResponseDTO;
 import io.hhplus.clean.domain.entity.Applicant;
 import io.hhplus.clean.domain.entity.Lecture;
-import io.hhplus.clean.repository.ApplicantRepository;
-import io.hhplus.clean.repository.LectureRepository;
-import io.hhplus.clean.service.LectureService;
+import io.hhplus.clean.domain.repository.ApplicantRepository;
+import io.hhplus.clean.domain.repository.LectureRepository;
+import io.hhplus.clean.application.service.LectureUseCase;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +17,7 @@ import org.mockito.MockitoAnnotations;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,7 +40,7 @@ public class LectureSignupServiceUnitTest {
     private ApplicantRepository applicantRepository;
 
     @InjectMocks
-    private LectureService lectureService;
+    private LectureUseCase lectureUseCase;
 
     private Lecture lecture1;
     private Lecture lecture2;
@@ -58,10 +59,16 @@ public class LectureSignupServiceUnitTest {
         this.lecture4 = new Lecture(4L, "Server2", LocalDate.now().plusWeeks(2), "Anonymous2");
 
 
-        when(lectureRepository.findById(1L)).thenReturn(Optional.of(lecture1));
-        when(lectureRepository.findById(2L)).thenReturn(Optional.of(lecture2));
-        when(lectureRepository.findById(3L)).thenReturn(Optional.of(lecture3));
-        when(lectureRepository.findById(4L)).thenReturn(Optional.of(lecture4));
+//        when(lectureRepository.findById(1L)).thenReturn(Optional.of(lecture1));
+//        when(lectureRepository.findById(2L)).thenReturn(Optional.of(lecture2));
+//        when(lectureRepository.findById(3L)).thenReturn(Optional.of(lecture3));
+//        when(lectureRepository.findById(4L)).thenReturn(Optional.of(lecture4));
+
+
+        when(lectureRepository.findByIdWithLock(1L)).thenReturn(Optional.of(lecture1));
+        when(lectureRepository.findByIdWithLock(2L)).thenReturn(Optional.of(lecture2));
+        when(lectureRepository.findByIdWithLock(3L)).thenReturn(Optional.of(lecture3));
+        when(lectureRepository.findByIdWithLock(4L)).thenReturn(Optional.of(lecture4));
 
         when(applicantRepository.existsByEmailAndLecture(anyString(), eq(lecture3))).thenReturn(false)
                 .thenReturn(true); // 두 번째 신청할 때는 이미 신청자로 간주
@@ -89,14 +96,14 @@ public class LectureSignupServiceUnitTest {
 
         //when
         //특강 신청
-        assertDoesNotThrow(() -> lectureService.applyForLecture(lectureId, applicantDTO));
+        assertDoesNotThrow(() -> lectureUseCase.applyForLecture(lectureId, applicantDTO));
 
         //then
-        verify(lectureRepository, times(1)).findById(lectureId);
-        verify(applicantRepository, times(1)).existsByEmailAndLecture("beta1992@hanmail.net", lectureRepository.findById(lectureId).get());
+        verify(lectureRepository, times(1)).findByIdWithLock(lectureId);
+        verify(applicantRepository, times(1)).existsByEmailAndLecture("beta1992@hanmail.net", lecture3);
         verify(applicantRepository, times(1)).save(any(Applicant.class));
 
-        Lecture lecture = lectureRepository.findById(lectureId).get();
+        Lecture lecture = lectureRepository.findByIdWithLock(lectureId).get();
         assertThat(lecture.getApplicants().size()).isEqualTo(1);
         assertThat(lecture.getApplicants().get(0).getName()).isEqualTo("정한슬");
     }
@@ -109,17 +116,17 @@ public class LectureSignupServiceUnitTest {
 
         //when
         //특강 신청
-        assertDoesNotThrow(() -> lectureService.applyForLecture(3L, applicantDTO));
+        assertDoesNotThrow(() -> lectureUseCase.applyForLecture(3L, applicantDTO));
 
         //두 번째 신청 시 예외 발생
         IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-                lectureService.applyForLecture(3L, applicantDTO));
+                lectureUseCase.applyForLecture(3L, applicantDTO));
 
         //then
         assertThat(exception.getMessage()).isEqualTo("이미 신청한 사람입니다.");
 
         // 추가 검증
-        verify(lectureRepository, times(2)).findById(3L); // 두 번 호출되어야 함
+        verify(lectureRepository, times(2)).findByIdWithLock(3L); // 두 번 호출되어야 함
         verify(applicantRepository, times(2)).existsByEmailAndLecture(anyString(), any(Lecture.class));
         verify(applicantRepository, times(1)).save(any(Applicant.class)); // 첫 번째 신청만 저장되어야 함
 
@@ -135,7 +142,7 @@ public class LectureSignupServiceUnitTest {
 
             // mock으로 각각의 이메일에 대해 existsByEmailAndLecture가 false를 반환하도록 설정
             when(applicantRepository.existsByEmailAndLecture("a" + i + "@hanmail.net", lecture3)).thenReturn(false);
-            lectureService.applyForLecture(3L, applicantDTO);
+            lectureUseCase.applyForLecture(3L, applicantDTO);
         }
 
         //when
@@ -144,13 +151,13 @@ public class LectureSignupServiceUnitTest {
         ApplicantDTO over = new ApplicantDTO("정원초과자", "over@hanmail.net");
         when(applicantRepository.existsByEmailAndLecture("over@hanmail.net", lecture3)).thenReturn(false);
         IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-                lectureService.applyForLecture(3L, over));
+                lectureUseCase.applyForLecture(3L, over));
 
         //then
         assertThat(exception.getMessage()).isEqualTo("정원이 초과되었습니다.");
 
         // 추가 검증
-        verify(lectureRepository, times(31)).findById(3L); // 강의 조회가 31 번 일어남
+        verify(lectureRepository, times(31)).findByIdWithLock(3L); // 강의 조회가 31 번 일어남
         verify(applicantRepository, times(30)).save(any(Applicant.class)); // 30명의 신청자만 저장
 
     }
@@ -164,8 +171,8 @@ public class LectureSignupServiceUnitTest {
 
         //when
         //존재하지 않는 특강을 신청
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
-                lectureService.applyForLecture(lectureId, applicantDTO));
+        NoSuchElementException exception = assertThrows(NoSuchElementException.class, () ->
+                lectureUseCase.applyForLecture(lectureId, applicantDTO));
 
         //then
         assertThat(exception.getMessage()).isEqualTo("해당 특강은 존재하지 않습니다.");
@@ -182,7 +189,7 @@ public class LectureSignupServiceUnitTest {
     void 특정_날짜에_신청_가능한_특강이_없을_때() {
 
         //오늘 날짜에 신청 가능한 특강은 2개 밖에 없어야함
-        List<Lecture> availableLecturesByDate = lectureService.getAvailableLecturesByDate(LocalDate.now());
+        List<LectureResponseDTO> availableLecturesByDate = lectureUseCase.getAvailableLecturesByDate(LocalDate.now());
         assertEquals(2, availableLecturesByDate.size());
     }
 
@@ -194,17 +201,19 @@ public class LectureSignupServiceUnitTest {
 
             // mock으로 각각의 이메일에 대해 existsByEmailAndLecture가 false를 반환하도록 설정
             when(applicantRepository.existsByEmailAndLecture("a" + i + "@hanmail.net", lecture3)).thenReturn(false);
-            lectureService.applyForLecture(3L, applicantDTO);
+            lectureUseCase.applyForLecture(3L, applicantDTO);
         }
 
         //when
-        List<Lecture> availableLecturesByDate = lectureService.getAvailableLecturesByDate(LocalDate.now());
+        List<LectureResponseDTO> availableLecturesByDate = lectureUseCase.getAvailableLecturesByDate(LocalDate.now());
 
         //then
         //Server1 특강은 정원초과로 신청이 불가능하므로 Server2 특강만 조회 가능
         assertEquals(1, availableLecturesByDate.size());
         assertFalse(availableLecturesByDate.stream().anyMatch(lecture -> lecture.getTitle().equals("Server1")));
         assertThat(availableLecturesByDate.get(0).getTitle()).isEqualTo("Server2");
+        assertThat(availableLecturesByDate.get(0).getLecturer()).isEqualTo("Anonymous2");
+        assertThat(availableLecturesByDate.get(0).getCurrentApplicants()).isEqualTo(0);
 
     }
 
@@ -225,7 +234,7 @@ public class LectureSignupServiceUnitTest {
         when(applicantRepository.findByEmail("beta1992@hanmail.net")).thenReturn(List.of(applicant));
 
         //when
-        List<LectureResponseDTO> lectures = lectureService.getLecturesByUserId("beta1992@hanmail.net");
+        List<LectureResponseDTO> lectures = lectureUseCase.getLecturesByUserId("beta1992@hanmail.net");
 
         assertThat(lectures.size()).isEqualTo(1);
         assertThat(lectures.get(0).getTitle()).isEqualTo("Server1");
@@ -235,7 +244,7 @@ public class LectureSignupServiceUnitTest {
 
     @Test
     void 신청된_특강이_없으면() {
-        List<LectureResponseDTO> lectures = lectureService.getLecturesByUserId("beta1992@hanmail.net");
+        List<LectureResponseDTO> lectures = lectureUseCase.getLecturesByUserId("beta1992@hanmail.net");
         assertThat(lectures).isEmpty();
     }
 
